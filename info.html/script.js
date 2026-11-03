@@ -454,22 +454,21 @@ function createAuthUi() {
     return overlay;
 }
 
-function addAccountBar() {
-    let bar = document.getElementById("accountBar");
-    if (!bar) {
-        bar = document.createElement("div");
-        bar.id = "accountBar";
-        bar.className = "account-bar";
-        const pageContainer = document.querySelector(".container");
-        if (pageContainer) {
-            document.body.insertBefore(bar, pageContainer);
-        } else {
-            document.body.insertBefore(bar, document.body.firstChild);
-        }
-    }
-    bar.innerHTML = `<span>${escapeHtml(currentProfileName || currentUser.email)}</span>
-        <button id="signOutButton" class="mc-button">UITLOGGEN</button>`;
-    bar.querySelector("#signOutButton").addEventListener("click", async () => {
+function addAccountMenuItem() {
+    const menu = document.getElementById("hamburgerMenu");
+    if (!menu || document.getElementById("signOutButton")) return;
+
+    const accountLabel = document.createElement("div");
+    accountLabel.id = "signedInAccount";
+    accountLabel.className = "menu-account-label";
+    accountLabel.textContent = currentProfileName || currentUser.email;
+    menu.appendChild(accountLabel);
+
+    const signOutButton = document.createElement("button");
+    signOutButton.id = "signOutButton";
+    signOutButton.className = "mc-button full-width menu-sign-out";
+    signOutButton.textContent = "UITLOGGEN";
+    signOutButton.addEventListener("click", async () => {
         try {
             const { error } = await supabaseClient.auth.signOut();
             if (error) throw error;
@@ -477,6 +476,7 @@ function addAccountBar() {
             showAppNotice(`Uitloggen is niet gelukt: ${error.message}`, true);
         }
     });
+    menu.appendChild(signOutButton);
 }
 
 async function loadStorageRows() {
@@ -637,7 +637,7 @@ async function initializeAuthenticatedApp(user) {
         document.getElementById("authOverlay").style.display = "none";
         showAppNotice(pendingAppNotice);
         pendingAppNotice = "";
-        addAccountBar();
+        addAccountMenuItem();
 
         const accountNameInput = document.getElementById("accountNameInput");
         if (accountNameInput) accountNameInput.value = currentProfileName;
@@ -672,8 +672,8 @@ function initializeBackend() {
             loadedUserId = null;
             allStorages = {};
             document.getElementById("authOverlay").style.display = "flex";
-            const bar = document.getElementById("accountBar");
-            if (bar) bar.remove();
+            document.getElementById("signedInAccount")?.remove();
+            document.getElementById("signOutButton")?.remove();
         } else if (session?.user) {
             initializeAuthenticatedApp(session.user);
         }
@@ -765,7 +765,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             currentProfileName = name;
             accountStatus.innerText = `Spelersnaam "${name}" opgeslagen in je account.`;
-            addAccountBar();
+            const existingAccountLabel = document.getElementById("signedInAccount");
+            if (existingAccountLabel) existingAccountLabel.textContent = currentProfileName;
             renderCommunityStorages();
         };
 

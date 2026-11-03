@@ -361,28 +361,20 @@ body.light-mode .mc-slider {
     background-color: #555;
 }
 
-.account-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: fit-content;
-    max-width: calc(100vw - 40px);
-    margin: 12px 80px 12px auto;
-    padding: 6px;
-    background: rgba(55, 55, 55, 0.95);
-    border: 2px solid #555;
-}
-
-.account-bar span {
+.menu-account-label {
     overflow: hidden;
-    color: #fff;
+    margin: 8px 0;
+    padding: 8px;
+    color: #ccc;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+    border-bottom: 1px solid #555;
 }
 
-.account-bar .mc-button {
-    padding: 5px 8px;
-    font-size: 1.2rem;
+.menu-sign-out {
+    margin-top: 8px;
+    background-color: #9c2525;
 }
 
 .app-notice {
@@ -400,10 +392,4 @@ body.light-mode .mc-slider {
 .app-notice-error {
     color: #fff;
     background: #9c2525;
-}
-
-@media (max-width: 520px) {
-    .account-bar {
-        margin: 70px 0 10px auto;
-    }
 }
