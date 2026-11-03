@@ -848,14 +848,6 @@ function initDashboard() {
             return;
         }
 
-        for (const storage of Object.values(allStorages)) {
-            if (storage.name.toLowerCase() === name.toLowerCase()) {
-                alert("Er bestaat al een storage met deze naam! Kies een andere naam.");
-                nameInput.focus();
-                return;
-            }
-        }
-
         const newId = crypto.randomUUID();
         let newData = {};
 
