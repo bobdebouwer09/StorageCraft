@@ -43,6 +43,7 @@ en passende privacy-informatie in te stellen.
 - E-mailadressen zijn niet publiek beschikbaar; de community toont de profielnaam.
 - Gebruikersnamen zijn uniek en kunnen worden gebruikt om in te loggen. E-mail-login
   blijft beschikbaar voor bestaande accounts.
+- Wachtwoordherstel verloopt via een reset-link naar het e-mailadres van het account.
 - Bij de eerste login kan een gebruiker desgewenst bestaande lokale demo-storages
   importeren. Geïmporteerde storages worden standaard privé ingesteld.
 

@@ -384,6 +384,7 @@ function createAuthUi() {
             <input id="authPassword" class="mc-input" type="password" minlength="8" autocomplete="current-password" required placeholder="Minimaal 8 tekens">
             <p id="authStatus" class="auth-status" role="status"></p>
             <button id="authSubmit" class="mc-button full-width" type="submit">INLOGGEN</button>
+            <button id="forgotPasswordButton" class="mc-button full-width auth-secondary" type="button">Wachtwoord vergeten?</button>
             <button id="authModeToggle" class="mc-button full-width auth-secondary" type="button">Nog geen account? Registreren</button>
         </form>`;
     document.body.appendChild(overlay);
@@ -397,28 +398,52 @@ function createAuthUi() {
     const password = overlay.querySelector("#authPassword");
     const submit = overlay.querySelector("#authSubmit");
     const modeToggle = overlay.querySelector("#authModeToggle");
-    let registering = false;
+    const forgotButton = overlay.querySelector("#forgotPasswordButton");
+    let mode = "login";
 
-    modeToggle.addEventListener("click", () => {
-        registering = !registering;
+    const renderMode = () => {
+        const registering = mode === "register";
+        const recovering = mode === "forgot";
+        username.hidden = registering || recovering;
+        overlay.querySelector('label[for="authUsername"]').hidden = registering || recovering;
+        username.required = !registering && !recovering;
         username.placeholder = registering ? "Kies een gebruikersnaam (3-20 tekens)" : "Gebruikersnaam of e-mailadres";
         overlay.querySelector('label[for="authUsername"]').textContent = registering
             ? "Gebruikersnaam"
             : "Gebruikersnaam of e-mailadres";
         displayName.hidden = !registering;
+        displayName.required = registering;
         displayNameLabel.hidden = !registering;
-        email.hidden = !registering;
-        emailLabel.hidden = !registering;
-        email.required = registering;
+        email.hidden = !registering && !recovering;
+        emailLabel.hidden = !registering && !recovering;
+        email.required = registering || recovering;
+        password.hidden = recovering;
+        password.required = !recovering;
         password.autocomplete = registering ? "new-password" : "current-password";
-        submit.textContent = registering ? "ACCOUNT AANMAKEN" : "INLOGGEN";
-        modeToggle.textContent = registering
-            ? "Heb je al een account? Inloggen"
-            : "Nog geen account? Registreren";
+        submit.textContent = registering ? "ACCOUNT AANMAKEN" : recovering ? "RESETLINK VERSTUREN" : "INLOGGEN";
+        modeToggle.hidden = false;
+        modeToggle.textContent = recovering
+            ? "Terug naar inloggen"
+            : registering
+                ? "Heb je al een account? Inloggen"
+                : "Nog geen account? Registreren";
+        forgotButton.hidden = registering || recovering;
         overlay.querySelector("#authDescription").textContent = registering
             ? "Maak een account om je storages online op te slaan."
-            : "Log in om je storages online te gebruiken.";
+            : recovering
+                ? "Vul het e-mailadres van je account in. We sturen een herstel-link als het adres bij een account hoort."
+                : "Log in om je storages online te gebruiken.";
         overlay.querySelector("#authStatus").textContent = "";
+    };
+
+    modeToggle.addEventListener("click", () => {
+        mode = mode === "forgot" ? "login" : mode === "register" ? "login" : "register";
+        renderMode();
+    });
+
+    forgotButton.addEventListener("click", () => {
+        mode = "forgot";
+        renderMode();
     });
 
     form.addEventListener("submit", async event => {
@@ -426,12 +451,19 @@ function createAuthUi() {
         const status = overlay.querySelector("#authStatus");
         submit.disabled = true;
         modeToggle.disabled = true;
+        forgotButton.disabled = true;
         status.textContent = "Even wachten...";
 
         try {
             const identity = username.value.trim();
             const passwordValue = password.value;
-            if (registering) {
+            if (mode === "forgot") {
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email.value.trim(), {
+                    redirectTo: window.CHESTCRAFT_SUPABASE_CONFIG.emailRedirectUrl
+                });
+                if (error) throw error;
+                status.textContent = "Als dit e-mailadres bij een account hoort, ontvang je een wachtwoord-resetlink. Controleer ook je spammap.";
+            } else if (mode === "register") {
                 const normalizedUsername = identity.toLowerCase();
                 if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
                     throw new Error("Kies een gebruikersnaam van 3-20 tekens met alleen letters, cijfers of _.");
@@ -478,9 +510,65 @@ function createAuthUi() {
         } finally {
             submit.disabled = false;
             modeToggle.disabled = false;
+            forgotButton.disabled = false;
         }
     });
+    renderMode();
     return overlay;
+}
+
+function createPasswordRecoveryUi() {
+    let overlay = document.getElementById("passwordRecoveryOverlay");
+    if (overlay) {
+        overlay.style.display = "flex";
+        return;
+    }
+
+    overlay = document.createElement("div");
+    overlay.id = "passwordRecoveryOverlay";
+    overlay.className = "auth-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <form id="passwordRecoveryForm" class="auth-box">
+            <h1 class="auth-title">NIEUW WACHTWOORD</h1>
+            <p>Kies een nieuw wachtwoord van minimaal 8 tekens.</p>
+            <label for="newPassword">Nieuw wachtwoord</label>
+            <input id="newPassword" class="mc-input" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+            <label for="confirmNewPassword">Herhaal nieuw wachtwoord</label>
+            <input id="confirmNewPassword" class="mc-input" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+            <p id="passwordRecoveryStatus" class="auth-status" role="status"></p>
+            <button id="passwordRecoverySubmit" class="mc-button full-width" type="submit">WACHTWOORD OPSLAAN</button>
+        </form>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#passwordRecoveryForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const status = overlay.querySelector("#passwordRecoveryStatus");
+        const submit = overlay.querySelector("#passwordRecoverySubmit");
+        const newPassword = overlay.querySelector("#newPassword").value;
+        const confirmPassword = overlay.querySelector("#confirmNewPassword").value;
+        if (newPassword !== confirmPassword) {
+            status.textContent = "De wachtwoorden komen niet overeen.";
+            return;
+        }
+
+        submit.disabled = true;
+        status.textContent = "Wachtwoord wordt bijgewerkt...";
+        try {
+            const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            status.textContent = "Je wachtwoord is gewijzigd. Je wordt ingelogd...";
+            overlay.style.display = "none";
+            const { data, error: userError } = await supabaseClient.auth.getUser();
+            if (userError) throw userError;
+            await initializeAuthenticatedApp(data.user);
+        } catch (error) {
+            overlay.style.display = "flex";
+            status.textContent = error.message || "Wachtwoord wijzigen is niet gelukt. Vraag een nieuwe resetlink aan.";
+        } finally {
+            submit.disabled = false;
+        }
+    });
 }
 
 function addAccountMenuItem() {
@@ -723,6 +811,8 @@ function initializeBackend() {
             document.getElementById("authOverlay").style.display = "flex";
             document.getElementById("signedInAccount")?.remove();
             document.getElementById("signOutButton")?.remove();
+        } else if (event === "PASSWORD_RECOVERY") {
+            createPasswordRecoveryUi();
         } else if (session?.user) {
             initializeAuthenticatedApp(session.user);
         }
