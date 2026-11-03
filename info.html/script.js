@@ -460,7 +460,12 @@ function addAccountBar() {
         bar = document.createElement("div");
         bar.id = "accountBar";
         bar.className = "account-bar";
-        document.body.appendChild(bar);
+        const pageContainer = document.querySelector(".container");
+        if (pageContainer) {
+            document.body.insertBefore(bar, pageContainer);
+        } else {
+            document.body.insertBefore(bar, document.body.firstChild);
+        }
     }
     bar.innerHTML = `<span>${escapeHtml(currentProfileName || currentUser.email)}</span>
         <button id="signOutButton" class="mc-button">UITLOGGEN</button>`;
