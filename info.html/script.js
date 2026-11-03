@@ -2,6 +2,36 @@
 // 1. DATABANK & TEMPLATES
 // ==========================================
 
+const makeItems = (...names) => names.map(name => ({ name }));
+const dyeColors = [
+    "White", "Orange", "Magenta", "Light Blue", "Yellow", "Lime", "Pink",
+    "Gray", "Light Gray", "Cyan", "Purple", "Blue", "Brown", "Green",
+    "Red", "Black"
+];
+const woodTypes = [
+    "Oak", "Birch", "Spruce", "Jungle", "Acacia", "Dark Oak", "Mangrove",
+    "Cherry", "Bamboo", "Crimson", "Warped"
+];
+const woodConstructionItems = woodTypes.flatMap(wood => {
+    const base = wood === "Bamboo"
+        ? ["Bamboo Block", "Stripped Bamboo Block"]
+        : wood === "Crimson" || wood === "Warped"
+            ? [`${wood} Stem`, `Stripped ${wood} Stem`]
+            : [`${wood} Log`, `Stripped ${wood} Log`];
+
+    const items = [
+        ...base,
+        ...["Planks", "Stairs", "Slab", "Fence", "Fence Gate", "Door", "Trapdoor",
+            "Button", "Pressure Plate", "Sign", "Hanging Sign"].map(suffix => `${wood} ${suffix}`)
+    ];
+    if (wood === "Bamboo") {
+        items.push("Bamboo Mosaic", "Bamboo Mosaic Stairs", "Bamboo Mosaic Slab", "Bamboo Raft", "Bamboo Chest Raft");
+    } else if (wood !== "Crimson" && wood !== "Warped") {
+        items.push(`${wood} Boat`, `${wood} Chest Boat`);
+    }
+    return items;
+});
+
 const TEMPLATES = {
     template_starter: {
         name: "Starter Survival",
@@ -24,16 +54,154 @@ const TEMPLATES = {
     template_mega: {
         name: "Mega Warehouse",
         data: {
-            "Ertsen & Mineralen": {
-                icon: "💎",
+            "Bouwblokken & Constructie": {
+                icon: "🪵",
                 subcategories: {
-                    "Valuables": [{ name: "Diamond" }, { name: "Gold Ingot" }, { name: "Iron Ingot" }, { name: "Ancient Debris" }]
+                    "Hout": makeItems(...woodConstructionItems),
+                    "Steen": makeItems(
+                        "Cobblestone", "Stone", "Smooth Stone", "Stone Bricks", "Granite", "Diorite",
+                        "Andesite", "Deepslate", "Tuff", "Calcite", "Dripstone Block", "Mud Bricks"
+                    ),
+                    "Zand, Grind & Glas": makeItems(
+                        "Sand", "Red Sand", "Gravel", "Glass", "Glass Pane", "Clay",
+                        ...dyeColors.flatMap(color => [
+                            `${color} Stained Glass`, `${color} Stained Glass Pane`,
+                            `${color} Terracotta`, `${color} Concrete`, `${color} Concrete Powder`
+                        ])
+                    ),
+                    "Nether & End": makeItems(
+                        "Netherrack", "Basalt", "Polished Basalt", "Blackstone", "Polished Blackstone",
+                        "End Stone", "End Stone Bricks", "Purpur Block", "Purpur Pillar", "Quartz Block",
+                        "Nether Bricks", "Red Nether Bricks", "Crimson Nylium", "Warped Nylium"
+                    )
                 }
             },
-            "Redstone": {
+            "Apparatuur & Uitrusting": {
+                icon: "⚔️",
+                subcategories: {
+                    "Wapens & Gereedschap": makeItems(
+                        "Sword", "Pickaxe", "Axe", "Shovel", "Hoe", "Bow", "Crossbow",
+                        "Fishing Rod", "Trident", "Mace", "Shears", "Flint and Steel"
+                    ),
+                    "Harnas & Bescherming": makeItems(
+                        "Helmet", "Chestplate", "Leggings", "Boots", "Shield", "Turtle Shell",
+                        "Elytra", "Leather Horse Armor", "Iron Horse Armor", "Golden Horse Armor",
+                        "Diamond Horse Armor", "Wolf Armor"
+                    ),
+                    "Magische uitrusting": makeItems(
+                        "Enchanted Book", "Name Tag", "Lapis Lazuli", "Grindstone", "Anvil",
+                        "Smithing Table", "Enchanting Table"
+                    )
+                }
+            },
+            "Eten & Landbouw": {
+                icon: "🍎",
+                subcategories: {
+                    "Eten": makeItems(
+                        "Cooked Beef", "Cooked Porkchop", "Cooked Chicken", "Cooked Mutton",
+                        "Bread", "Golden Apple", "Enchanted Golden Apple", "Apple", "Carrot",
+                        "Baked Potato", "Pumpkin Pie", "Cooked Cod", "Cooked Salmon"
+                    ),
+                    "Zaden & Gewassen": makeItems(
+                        "Wheat Seeds", "Beetroot Seeds", "Melon Seeds", "Pumpkin Seeds",
+                        "Sugar Cane", "Nether Wart", "Cocoa Beans", "Sweet Berries", "Glow Berries",
+                        "Wheat", "Beetroot", "Melon", "Pumpkin"
+                    ),
+                    "Dierlijke producten": makeItems(
+                        ...dyeColors.map(color => `${color} Wool`),
+                        "Leather", "Feather", "Egg", "String", "Honeycomb", "Honey Bottle"
+                    )
+                }
+            },
+            "Ertsen & Waardevolle Spullen": {
+                icon: "💎",
+                subcategories: {
+                    "Ertsen": makeItems(
+                        "Coal Ore", "Deepslate Coal Ore", "Iron Ore", "Deepslate Iron Ore",
+                        "Gold Ore", "Deepslate Gold Ore", "Copper Ore", "Deepslate Copper Ore",
+                        "Redstone Ore", "Deepslate Redstone Ore", "Lapis Lazuli Ore",
+                        "Deepslate Lapis Lazuli Ore", "Diamond Ore", "Deepslate Diamond Ore",
+                        "Emerald Ore", "Deepslate Emerald Ore", "Nether Gold Ore", "Nether Quartz Ore",
+                        "Ancient Debris"
+                    ),
+                    "Grondstoffen & Blokken": makeItems(
+                        "Coal", "Charcoal", "Iron Ingot", "Gold Ingot", "Copper Ingot",
+                        "Raw Iron", "Raw Gold", "Raw Copper", "Diamond", "Emerald",
+                        "Netherite Ingot", "Block of Diamond", "Block of Gold", "Block of Iron",
+                        "Block of Netherite", "Block of Coal", "Block of Copper", "Lapis Lazuli",
+                        "Redstone Dust", "Quartz"
+                    )
+                }
+            },
+            "Redstone & Mechanismen": {
                 icon: "🔴",
                 subcategories: {
-                    "Componenten": [{ name: "Redstone Dust" }, { name: "Repeater" }, { name: "Comparator" }, { name: "Piston" }]
+                    "Basis redstone": makeItems(
+                        "Redstone Dust", "Redstone Torch", "Redstone Repeater",
+                        "Redstone Comparator", "Redstone Block"
+                    ),
+                    "Activatoren": makeItems(
+                        ...woodTypes.map(wood => `${wood} Button`),
+                        "Stone Button", "Lever", ...woodTypes.map(wood => `${wood} Pressure Plate`),
+                        "Stone Pressure Plate", "Light Weighted Pressure Plate",
+                        "Heavy Weighted Pressure Plate", "Tripwire Hook", "Target Block",
+                        "Sculk Sensor", "Calibrated Sculk Sensor"
+                    ),
+                    "Mechanismen": makeItems(
+                        "Piston", "Sticky Piston", "Dropper", "Dispenser", "Hopper", "Observer",
+                        "Crafter", "Daylight Detector", "Note Block", "TNT"
+                    )
+                }
+            },
+            "Brouwen & Magie": {
+                icon: "🧪",
+                subcategories: {
+                    "Brouwen": makeItems(
+                        "Brewing Stand", "Cauldron", "Glass Bottle", "Potion", "Splash Potion",
+                        "Lingering Potion"
+                    ),
+                    "Ingrediënten": makeItems(
+                        "Blaze Powder", "Ghast Tear", "Magma Cream", "Spider Eye",
+                        "Fermented Spider Eye", "Glistering Melon Slice", "Golden Carrot",
+                        "Phantom Membrane", "Dragon's Breath"
+                    )
+                }
+            },
+            "Natuur & Decoratie": {
+                icon: "🌿",
+                subcategories: {
+                    "Planten & Bomen": makeItems(
+                        ...woodTypes.filter(wood => wood !== "Bamboo" && wood !== "Crimson" && wood !== "Warped")
+                            .flatMap(wood => [`${wood} Sapling`, `${wood} Leaves`]),
+                        "Bamboo", "Crimson Fungus", "Warped Fungus", "Moss Block", "Azalea",
+                        "Flowering Azalea", "Vines", "Cave Vines", "Glow Lichen",
+                        "Brown Mushroom", "Red Mushroom", "Mangrove Propagule", "Fern",
+                        "Grass", "Lily Pad", "Moss Carpet", "Dandelion", "Poppy",
+                        "Blue Orchid", "Allium", "Azure Bluet", "Red Tulip", "Orange Tulip",
+                        "White Tulip", "Pink Tulip", "Oxeye Daisy", "Cornflower",
+                        "Lily of the Valley", "Torchflower", "Wither Rose", "Sunflower",
+                        "Lilac", "Rose Bush", "Peony"
+                    ),
+                    "Decoratie": makeItems(
+                        "Painting", "Banner", "Flower Pot", "Candle", "Lantern", "Soul Lantern",
+                        "Bed", "Carpet", "Armor Stand", "Bell", "Item Frame", "Glow Item Frame",
+                        "Campfire", "Soul Campfire", "Bookshelf", "Chiseled Bookshelf",
+                        ...dyeColors.flatMap(color => [`${color} Candle`, `${color} Bed`, `${color} Carpet`, `${color} Banner`])
+                    )
+                }
+            },
+            "Mob Drops & Restanten": {
+                icon: "💀",
+                subcategories: {
+                    "Mob Drops": makeItems(
+                        "Rotten Flesh", "Bone", "Bone Meal", "Gunpowder", "Ender Pearl",
+                        "Slimeball", "Blaze Rod", "Prismarine Shard", "Prismarine Crystals",
+                        "Shulker Shell", "Wither Skeleton Skull", "Totem of Undying"
+                    ),
+                    "Overig": makeItems(
+                        "Saddle", "Bucket", "Water Bucket", "Lava Bucket", "Milk Bucket",
+                        "Sponge", "Wet Sponge"
+                    )
                 }
             }
         }
