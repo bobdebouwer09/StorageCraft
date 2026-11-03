@@ -350,6 +350,18 @@ body.light-mode .mc-slider {
     text-align: center;
 }
 
+.auth-password-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.auth-password-toggle input {
+    width: auto;
+    margin: 0;
+}
+
 .auth-status {
     min-height: 1.2em;
     margin: 0;

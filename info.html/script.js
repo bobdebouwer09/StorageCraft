@@ -382,6 +382,7 @@ function createAuthUi() {
             <input id="authEmail" class="mc-input" type="email" autocomplete="email" placeholder="jij@voorbeeld.nl" hidden>
             <label for="authPassword">Wachtwoord</label>
             <input id="authPassword" class="mc-input" type="password" minlength="8" autocomplete="current-password" required placeholder="Minimaal 8 tekens">
+            <label class="auth-password-toggle"><input id="showAuthPassword" type="checkbox"> Wachtwoord tonen</label>
             <p id="authStatus" class="auth-status" role="status"></p>
             <button id="authSubmit" class="mc-button full-width" type="submit">INLOGGEN</button>
             <button id="forgotPasswordButton" class="mc-button full-width auth-secondary" type="button">Wachtwoord vergeten?</button>
@@ -396,6 +397,8 @@ function createAuthUi() {
     const email = overlay.querySelector("#authEmail");
     const emailLabel = overlay.querySelector("#authEmailLabel");
     const password = overlay.querySelector("#authPassword");
+    const showPassword = overlay.querySelector("#showAuthPassword");
+    const showPasswordLabel = showPassword.closest("label");
     const submit = overlay.querySelector("#authSubmit");
     const modeToggle = overlay.querySelector("#authModeToggle");
     const forgotButton = overlay.querySelector("#forgotPasswordButton");
@@ -419,6 +422,9 @@ function createAuthUi() {
         email.required = registering || recovering;
         password.hidden = recovering;
         password.required = !recovering;
+        showPasswordLabel.hidden = recovering;
+        showPassword.checked = false;
+        password.type = "password";
         password.autocomplete = registering ? "new-password" : "current-password";
         submit.textContent = registering ? "ACCOUNT AANMAKEN" : recovering ? "RESETLINK VERSTUREN" : "INLOGGEN";
         modeToggle.hidden = false;
@@ -435,6 +441,10 @@ function createAuthUi() {
                 : "Log in om je storages online te gebruiken.";
         overlay.querySelector("#authStatus").textContent = "";
     };
+
+    showPassword.addEventListener("change", () => {
+        password.type = showPassword.checked ? "text" : "password";
+    });
 
     modeToggle.addEventListener("click", () => {
         mode = mode === "forgot" ? "login" : mode === "register" ? "login" : "register";
@@ -536,10 +546,18 @@ function createPasswordRecoveryUi() {
             <input id="newPassword" class="mc-input" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
             <label for="confirmNewPassword">Herhaal nieuw wachtwoord</label>
             <input id="confirmNewPassword" class="mc-input" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+            <label class="auth-password-toggle"><input id="showRecoveryPasswords" type="checkbox"> Wachtwoorden tonen</label>
             <p id="passwordRecoveryStatus" class="auth-status" role="status"></p>
             <button id="passwordRecoverySubmit" class="mc-button full-width" type="submit">WACHTWOORD OPSLAAN</button>
         </form>`;
     document.body.appendChild(overlay);
+
+    const showPasswords = overlay.querySelector("#showRecoveryPasswords");
+    showPasswords.addEventListener("change", () => {
+        const type = showPasswords.checked ? "text" : "password";
+        overlay.querySelector("#newPassword").type = type;
+        overlay.querySelector("#confirmNewPassword").type = type;
+    });
 
     overlay.querySelector("#passwordRecoveryForm").addEventListener("submit", async event => {
         event.preventDefault();
@@ -1056,6 +1074,7 @@ function renderMyStorages() {
             </div>
             <div style="display: flex; gap: 8px;">
                 <button class="mc-button" onclick="openStorage('${id}')" style="background-color: #55ff55; color: #000; font-size: 1.3rem;">OPENEN</button>
+                <button class="mc-button" onclick="renameStorage('${id}')" style="font-size: 1.3rem;">NAAM WIJZIGEN</button>
                 <button class="mc-button" onclick="togglePrivacyDashboard('${id}')" style="font-size: 1.3rem;">${item.isPublic ? 'Privé' : 'Openbaar'}</button>
                 <button class="mc-button" onclick="deleteStorage('${id}')" style="background-color: #ff5555; color: #fff; font-size: 1.3rem;">✖</button>
             </div>
@@ -1093,6 +1112,28 @@ function renderCommunityStorages() {
 function openStorage(id) {
     localStorage.setItem('mc_active_storage_id', id);
     window.location.href = "storage.html";
+}
+
+async function renameStorage(id) {
+    const storage = allStorages[id];
+    if (!currentUser || !storage || storage.ownerId !== currentUser.id) return;
+
+    const enteredName = window.prompt("Vul een nieuwe naam in voor je storage:", storage.name);
+    if (enteredName === null) return;
+
+    const name = enteredName.trim();
+    if (!name) {
+        alert("De naam van je storage mag niet leeg zijn.");
+        return;
+    }
+    if (name.length > 80) {
+        alert("De naam van je storage mag maximaal 80 tekens zijn.");
+        return;
+    }
+    if (name === storage.name) return;
+
+    storage.name = name;
+    if (await persistStorage(id)) renderMyStorages();
 }
 
 function togglePrivacyDashboard(id) {
