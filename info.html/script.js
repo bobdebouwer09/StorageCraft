@@ -310,36 +310,367 @@ const TEMPLATES = {
     }
 };
 
-let allStorages = JSON.parse(localStorage.getItem('mc_all_storages_v1')) || {
-    "my_first_storage": {
-        id: "my_first_storage",
-        name: "Mijn Survival Base",
-        isPublic: false,
-        data: {
-            "Bouwblokken": {
-                icon: "🪵",
-                subcategories: {
-                    "Hout": [{ name: "Oak Log" }, { name: "Oak Plank" }],
-                    "Steen": [{ name: "Cobblestone" }, { name: "Stone Bricks" }]
-                }
-            }
-        }
-    }
-};
-
-let communityStorages = [
-    { name: "Ultimate Redstone Vault", author: "CraftMaster99" },
-    { name: "Skyblock Storage Layout", author: "PixelSteve" }
-];
-
-let activeStorageId = localStorage.getItem('mc_active_storage_id') || "my_first_storage";
+let allStorages = {};
+let communityStorages = [];
+let currentUser = null;
+let currentProfileName = "";
+let isReadOnlyStorage = false;
+let activeStorageId = localStorage.getItem('mc_active_storage_id') || "";
 let currentCategory = null;
 let currentSubCategory = null;
 let currentPage = 'home';
 let selectedIcon = '📦';
+let supabaseClient = null;
+let loadedUserId = null;
+let pendingAppNotice = "";
+const storageSaveQueues = new Map();
 
-function saveAllStorages() {
-    localStorage.setItem('mc_all_storages_v1', JSON.stringify(allStorages));
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+function isStorageDataValid(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+    return Object.values(data).every(category =>
+        category && typeof category === "object" && !Array.isArray(category) &&
+        category.subcategories && typeof category.subcategories === "object" &&
+        !Array.isArray(category.subcategories) &&
+        Object.values(category.subcategories).every(items =>
+            Array.isArray(items) && items.every(item =>
+                typeof item === "string" ||
+                (item && typeof item === "object" && typeof item.name === "string")
+            )
+        )
+    );
+}
+
+function showAppNotice(message, isError = false) {
+    let notice = document.getElementById("appNotice");
+    if (!notice) {
+        notice = document.createElement("div");
+        notice.id = "appNotice";
+        notice.className = "app-notice";
+        notice.setAttribute("role", "status");
+        document.body.appendChild(notice);
+    }
+    notice.textContent = message;
+    notice.classList.toggle("app-notice-error", isError);
+    notice.style.display = message ? "block" : "none";
+}
+
+function createAuthUi() {
+    const overlay = document.createElement("div");
+    overlay.id = "authOverlay";
+    overlay.className = "auth-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <form id="authForm" class="auth-box">
+            <h1 class="auth-title">⛏️ CHESTCRAFT</h1>
+            <p id="authDescription">Log in om je storages online te gebruiken.</p>
+            <label id="displayNameLabel" for="authDisplayName" hidden>Spelersnaam</label>
+            <input id="authDisplayName" class="mc-input" type="text" maxlength="32" autocomplete="nickname" placeholder="Spelersnaam" hidden>
+            <label for="authEmail">E-mailadres</label>
+            <input id="authEmail" class="mc-input" type="email" autocomplete="email" required placeholder="jij@voorbeeld.nl">
+            <label for="authPassword">Wachtwoord</label>
+            <input id="authPassword" class="mc-input" type="password" minlength="8" autocomplete="current-password" required placeholder="Minimaal 8 tekens">
+            <p id="authStatus" class="auth-status" role="status"></p>
+            <button id="authSubmit" class="mc-button full-width" type="submit">INLOGGEN</button>
+            <button id="authModeToggle" class="mc-button full-width auth-secondary" type="button">Nog geen account? Registreren</button>
+        </form>`;
+    document.body.appendChild(overlay);
+
+    const form = overlay.querySelector("#authForm");
+    const displayName = overlay.querySelector("#authDisplayName");
+    const displayNameLabel = overlay.querySelector("#displayNameLabel");
+    const password = overlay.querySelector("#authPassword");
+    const submit = overlay.querySelector("#authSubmit");
+    const modeToggle = overlay.querySelector("#authModeToggle");
+    let registering = false;
+
+    modeToggle.addEventListener("click", () => {
+        registering = !registering;
+        displayName.hidden = !registering;
+        displayNameLabel.hidden = !registering;
+        password.autocomplete = registering ? "new-password" : "current-password";
+        submit.textContent = registering ? "ACCOUNT AANMAKEN" : "INLOGGEN";
+        modeToggle.textContent = registering
+            ? "Heb je al een account? Inloggen"
+            : "Nog geen account? Registreren";
+        overlay.querySelector("#authDescription").textContent = registering
+            ? "Maak een account om je storages online op te slaan."
+            : "Log in om je storages online te gebruiken.";
+        overlay.querySelector("#authStatus").textContent = "";
+    });
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const status = overlay.querySelector("#authStatus");
+        submit.disabled = true;
+        modeToggle.disabled = true;
+        status.textContent = "Even wachten...";
+
+        try {
+            const email = overlay.querySelector("#authEmail").value.trim();
+            const passwordValue = password.value;
+            if (registering) {
+                const name = displayName.value.trim();
+                if (!name) throw new Error("Vul je spelersnaam in.");
+                if (name.length > 32) throw new Error("Je spelersnaam mag maximaal 32 tekens zijn.");
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password: passwordValue,
+                    options: {
+                        data: { display_name: name },
+                        emailRedirectTo: window.CHESTCRAFT_SUPABASE_CONFIG.emailRedirectUrl
+                    }
+                });
+                if (error) throw error;
+                if (!data.session) {
+                    status.textContent = "Account aangemaakt. Bevestig je e-mailadres via de mail om in te loggen.";
+                } else {
+                    status.textContent = "Account aangemaakt.";
+                }
+            } else {
+                const { error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password: passwordValue
+                });
+                if (error) throw error;
+                status.textContent = "";
+            }
+        } catch (error) {
+            status.textContent = error.message || "Inloggen is niet gelukt. Probeer het opnieuw.";
+        } finally {
+            submit.disabled = false;
+            modeToggle.disabled = false;
+        }
+    });
+    return overlay;
+}
+
+function addAccountBar() {
+    let bar = document.getElementById("accountBar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "accountBar";
+        bar.className = "account-bar";
+        document.body.appendChild(bar);
+    }
+    bar.innerHTML = `<span>${escapeHtml(currentProfileName || currentUser.email)}</span>
+        <button id="signOutButton" class="mc-button">UITLOGGEN</button>`;
+    bar.querySelector("#signOutButton").addEventListener("click", async () => {
+        try {
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) throw error;
+        } catch (error) {
+            showAppNotice(`Uitloggen is niet gelukt: ${error.message}`, true);
+        }
+    });
+}
+
+async function loadStorageRows() {
+    const { data, error } = await supabaseClient
+        .from("storages")
+        .select("id, owner_id, name, is_public, data")
+        .eq("owner_id", currentUser.id)
+        .order("created_at", { ascending: true });
+    if (error) throw error;
+    if (!data.every(row => isStorageDataValid(row.data))) {
+        throw new Error("Een of meer storages bevatten ongeldige gegevens.");
+    }
+
+    let rows = data;
+    if (!rows.length) {
+        const savedLocalData = localStorage.getItem("mc_all_storages_v1");
+        const localDataAlreadyImported = localStorage.getItem("mc_all_storages_v1_imported") === "true";
+        if (savedLocalData && !localDataAlreadyImported &&
+            window.confirm("Ik heb lokale demo-storages gevonden. Wil je deze eenmalig importeren naar dit account?")) {
+            let localStorages;
+            try {
+                localStorages = JSON.parse(savedLocalData);
+            } catch {
+                throw new Error("De lokale demo-storages zijn beschadigd en kunnen niet worden geïmporteerd.");
+            }
+            if (!localStorages || typeof localStorages !== "object" || Array.isArray(localStorages)) {
+                throw new Error("De lokale demo-storages hebben een ongeldig formaat.");
+            }
+            const importCandidates = Object.entries(localStorages)
+                .filter(([, storage]) => storage && typeof storage.name === "string" && storage.data &&
+                    isStorageDataValid(storage.data));
+            const importedRows = importCandidates.map(([, storage]) => ({
+                owner_id: currentUser.id,
+                name: storage.name.trim().slice(0, 80) || "Geïmporteerde storage",
+                is_public: false,
+                data: storage.data
+            }));
+            if (!importedRows.length) {
+                throw new Error("Er zijn geen geldige storages gevonden om te importeren.");
+            }
+            const { data: imported, error: importError } = await supabaseClient
+                .from("storages")
+                .insert(importedRows)
+                .select("id, owner_id, name, is_public, data");
+            if (importError) throw importError;
+            const oldActiveId = activeStorageId;
+            const activeIndex = importCandidates.findIndex(([id]) => id === oldActiveId);
+            if (activeIndex >= 0 && imported[activeIndex]) {
+                activeStorageId = imported[activeIndex].id;
+                localStorage.setItem("mc_active_storage_id", activeStorageId);
+            }
+            localStorage.setItem("mc_all_storages_v1_imported", "true");
+            rows = imported;
+            pendingAppNotice = `${imported.length} lokale storage(s) veilig als privé geïmporteerd.`;
+        }
+    }
+
+    allStorages = Object.fromEntries(rows.map(row => [row.id, {
+        id: row.id,
+        ownerId: row.owner_id,
+        name: row.name,
+        isPublic: row.is_public,
+        data: row.data
+    }]));
+}
+
+async function loadCommunityStorages() {
+    const { data, error } = await supabaseClient
+        .from("storages")
+        .select("id, owner_id, name, created_at")
+        .eq("is_public", true)
+        .neq("owner_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+    if (error) throw error;
+
+    const ownerIds = [...new Set(data.map(row => row.owner_id))];
+    let profiles = [];
+    if (ownerIds.length) {
+        const { data: profileRows, error: profileError } = await supabaseClient
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", ownerIds);
+        if (profileError) throw profileError;
+        profiles = profileRows;
+    }
+    const profileNames = Object.fromEntries(profiles.map(profile => [profile.id, profile.display_name]));
+    communityStorages = data.map(row => ({
+        id: row.id,
+        ownerId: row.owner_id,
+        name: row.name,
+        author: profileNames[row.owner_id] || "Speler"
+    }));
+}
+
+async function persistStorage(storageId) {
+    const storage = allStorages[storageId];
+    const snapshot = JSON.parse(JSON.stringify({
+        id: storage.id,
+        owner_id: currentUser.id,
+        name: storage.name,
+        is_public: storage.isPublic,
+        data: storage.data
+    }));
+    const previousSave = storageSaveQueues.get(storageId) || Promise.resolve();
+    const nextSave = previousSave.catch(() => {}).then(async () => {
+        const { error } = await supabaseClient.from("storages").upsert(snapshot);
+        if (error) throw error;
+    });
+    storageSaveQueues.set(storageId, nextSave);
+
+    try {
+        await nextSave;
+        return true;
+    } catch (error) {
+        showAppNotice(`Opslaan is niet gelukt: ${error.message}. De pagina wordt opnieuw geladen.`, true);
+        window.setTimeout(() => window.location.reload(), 1800);
+        return false;
+    } finally {
+        if (storageSaveQueues.get(storageId) === nextSave) storageSaveQueues.delete(storageId);
+    }
+}
+
+async function initializeAuthenticatedApp(user) {
+    if (loadedUserId === user.id) return;
+    loadedUserId = user.id;
+    currentUser = user;
+
+    try {
+        const { data: profile, error: profileError } = await supabaseClient
+            .from("profiles")
+            .select("display_name")
+            .eq("id", user.id)
+            .maybeSingle();
+        if (profileError) throw profileError;
+
+        currentProfileName = profile?.display_name || user.user_metadata?.display_name ||
+            user.email.split("@")[0].slice(0, 32);
+        if (!profile) {
+            const { error: insertError } = await supabaseClient.from("profiles").insert({
+                id: user.id,
+                display_name: currentProfileName
+            });
+            if (insertError) throw insertError;
+        }
+
+        await Promise.all([loadStorageRows(), loadCommunityStorages()]);
+        isReadOnlyStorage = false;
+        document.getElementById("authOverlay").style.display = "none";
+        showAppNotice(pendingAppNotice);
+        pendingAppNotice = "";
+        addAccountBar();
+
+        const accountNameInput = document.getElementById("accountNameInput");
+        if (accountNameInput) accountNameInput.value = currentProfileName;
+        if (document.getElementById("myStorageList")) initDashboard();
+        else if (document.getElementById("currentStorageTitle")) await initStoragePage();
+        if (document.getElementById("appNotice")?.textContent) {
+            window.setTimeout(() => showAppNotice(""), 6000);
+        }
+    } catch (error) {
+        loadedUserId = null;
+        document.getElementById("authOverlay").style.display = "none";
+        showAppNotice(
+            `De online opslag kon niet worden geladen. Controleer of supabase/schema.sql in Supabase is uitgevoerd. Details: ${error.message}`,
+            true
+        );
+    }
+}
+
+function initializeBackend() {
+    createAuthUi();
+    const config = window.CHESTCRAFT_SUPABASE_CONFIG;
+    if (!config || !window.supabase?.createClient) {
+        document.getElementById("authSubmit").disabled = true;
+        document.getElementById("authModeToggle").disabled = true;
+        showAppNotice("De accountdienst kon niet worden geladen. Ververs de pagina of probeer het later opnieuw.", true);
+        return;
+    }
+    supabaseClient = window.supabase.createClient(config.url, config.publishableKey);
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_OUT") {
+            currentUser = null;
+            loadedUserId = null;
+            allStorages = {};
+            document.getElementById("authOverlay").style.display = "flex";
+            const bar = document.getElementById("accountBar");
+            if (bar) bar.remove();
+        } else if (session?.user) {
+            initializeAuthenticatedApp(session.user);
+        }
+    });
+    supabaseClient.auth.getSession().then(({ data, error }) => {
+        if (error) throw error;
+        if (data.session?.user) initializeAuthenticatedApp(data.session.user);
+        else document.getElementById("authOverlay").style.display = "flex";
+    }).catch(error => {
+        showAppNotice(`Aanmeldstatus kon niet worden gecontroleerd: ${error.message}`, true);
+    });
 }
 
 // ==========================================
@@ -392,65 +723,48 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Account instellen logica
+    // Accountinstellingen zijn gekoppeld aan het ingelogde Supabase-account.
     const accountNameInput = document.getElementById('accountNameInput');
     const btnSaveAccount = document.getElementById('btnSaveAccount');
     const accountStatus = document.getElementById('accountStatus');
 
-    let registeredAccounts = JSON.parse(localStorage.getItem('mc_registered_accounts')) || [];
-    let currentAccount = localStorage.getItem('mc_current_account') || "";
-
-    if (accountNameInput) {
-        accountNameInput.value = currentAccount;
-        if (currentAccount && accountStatus) {
-            accountStatus.innerText = `Spelersnaam op dit apparaat: ${currentAccount}`;
-        }
-    }
-
     if (btnSaveAccount) {
-        const saveAccountAction = () => {
+        const saveProfileAction = async () => {
             const name = accountNameInput.value.trim();
             if (!name) {
-                alert("Vul een spelersnaam in!");
+                accountStatus.innerText = "Vul een spelersnaam in.";
                 return;
             }
-
-            let nameExists = registeredAccounts.some(acc => acc.toLowerCase() === name.toLowerCase());
-
-            if (nameExists && currentAccount.toLowerCase() !== name.toLowerCase()) {
-                alert("Deze naam is al opgeslagen in deze browser. Kies een andere naam.");
-                accountNameInput.focus();
+            if (name.length > 32) {
+                accountStatus.innerText = "Je spelersnaam mag maximaal 32 tekens zijn.";
                 return;
             }
-
-            if (!nameExists) {
-                registeredAccounts.push(name);
-                localStorage.setItem('mc_registered_accounts', JSON.stringify(registeredAccounts));
+            try {
+                const { error } = await supabaseClient.from("profiles").upsert({
+                    id: currentUser.id,
+                    display_name: name
+                });
+                if (error) throw error;
+            } catch (error) {
+                accountStatus.innerText = `Opslaan is niet gelukt: ${error.message}`;
+                return;
             }
-
-            localStorage.setItem('mc_current_account', name);
-            currentAccount = name;
-            if (accountStatus) {
-                accountStatus.innerText = `Spelersnaam opgeslagen op dit apparaat: ${name}`;
-            }
-            alert(`Spelersnaam "${name}" opgeslagen in deze browser.`);
+            currentProfileName = name;
+            accountStatus.innerText = `Spelersnaam "${name}" opgeslagen in je account.`;
+            addAccountBar();
+            renderCommunityStorages();
         };
 
-        btnSaveAccount.addEventListener('click', saveAccountAction);
+        btnSaveAccount.addEventListener('click', saveProfileAction);
         accountNameInput.addEventListener('keydown', (e) => {
             if (e.key === "Enter") {
                 e.preventDefault();
-                saveAccountAction();
+                saveProfileAction();
             }
         });
     }
 
-    // Pagina detectie voor overige pagina's
-    if (document.getElementById('myStorageList') || document.getElementById('welcomeUserTitle')) {
-        initDashboard();
-    } else if (document.getElementById('currentStorageTitle')) {
-        initStoragePage();
-    }
+    initializeBackend();
 });
 
 
@@ -494,16 +808,9 @@ function initDashboard() {
     renderMyStorages();
     renderCommunityStorages();
 
-    // --- WELKOM BERICHT MET ACCOUNTNAAM ---
     const welcomeTitle = document.getElementById("welcomeUserTitle");
-    const currentAccount = localStorage.getItem('mc_current_account');
-
     if (welcomeTitle) {
-        if (currentAccount) {
-            welcomeTitle.innerText = `Welkom, ${currentAccount}!`;
-        } else {
-            welcomeTitle.innerText = `Welkom, Speler! (Stel je spelersnaam in bij Instellingen)`;
-        }
+        welcomeTitle.innerText = `Welkom, ${currentProfileName || currentUser.email}!`;
     }
 
     const btnOpenModal = document.getElementById("btnOpenNewStorageModal");
@@ -523,7 +830,7 @@ function initDashboard() {
         btnCancelModal.addEventListener("click", () => modal.style.display = "none");
     }
 
-    const executeCreate = () => {
+    const executeCreate = async () => {
         const typeSelect = document.getElementById("newStorageType");
         const name = nameInput.value.trim();
 
@@ -532,15 +839,15 @@ function initDashboard() {
             return;
         }
 
-        for (let id in allStorages) {
-            if (allStorages[id].name.toLowerCase() === name.toLowerCase()) {
+        for (const storage of Object.values(allStorages)) {
+            if (storage.name.toLowerCase() === name.toLowerCase()) {
                 alert("Er bestaat al een storage met deze naam! Kies een andere naam.");
                 nameInput.focus();
                 return;
             }
         }
 
-        let newId = "storage_" + Date.now();
+        const newId = crypto.randomUUID();
         let newData = {};
 
         if (typeSelect.value !== "empty" && TEMPLATES[typeSelect.value]) {
@@ -549,12 +856,14 @@ function initDashboard() {
 
         allStorages[newId] = {
             id: newId,
+            ownerId: currentUser.id,
             name: name,
             isPublic: false,
             data: newData
         };
 
-        saveAllStorages();
+        const saved = await persistStorage(newId);
+        if (!saved) return;
         nameInput.value = "";
         modal.style.display = "none";
         renderMyStorages();
@@ -586,7 +895,7 @@ function renderMyStorages() {
 
         card.innerHTML = `
             <div>
-                <strong style="color: #fff; font-size: 1.5rem;">${item.name}</strong>
+                <strong style="color: #fff; font-size: 1.5rem;">${escapeHtml(item.name)}</strong>
                 <span style="font-size: 1.1rem; color: ${item.isPublic ? '#55ff55' : '#ff5555'}; margin-left: 10px;">
                     ${item.isPublic ? '🌐 Openbaar' : '🔒 Privé'}
                 </span>
@@ -599,6 +908,7 @@ function renderMyStorages() {
         `;
         container.appendChild(card);
     }
+    if (!container.childElementCount) container.textContent = "Je hebt nog geen storages. Maak er een aan met + NIEUW.";
 }
 
 function renderCommunityStorages() {
@@ -606,16 +916,22 @@ function renderCommunityStorages() {
     if (!container) return;
     container.innerHTML = "";
 
+    if (!communityStorages.length) {
+        container.textContent = "Er zijn nog geen openbare storages.";
+        return;
+    }
+
     communityStorages.forEach(item => {
         const card = document.createElement("div");
         card.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(37,37,37,0.9); padding: 12px; border: 3px solid #555;";
         card.innerHTML = `
             <div>
-                <strong style="color: #fff; font-size: 1.4rem;">${item.name}</strong>
-                <span style="color: #aaa; font-size: 1.1rem;"> door ${item.author}</span>
+                <strong style="color: #fff; font-size: 1.4rem;">${escapeHtml(item.name)}</strong>
+                <span style="color: #aaa; font-size: 1.1rem;"> door ${escapeHtml(item.author)}</span>
             </div>
-            <button class="mc-button" onclick="alert('Binnenkort kun je storage van anderen bekijken!')" style="font-size: 1.3rem;">BEKIJKEN</button>
+            <button class="mc-button community-view-button" style="font-size: 1.3rem;">BEKIJKEN</button>
         `;
+        card.querySelector(".community-view-button").addEventListener("click", () => openStorage(item.id));
         container.appendChild(card);
     });
 }
@@ -626,10 +942,16 @@ function openStorage(id) {
 }
 
 function togglePrivacyDashboard(id) {
-    if (allStorages[id]) {
+    if (allStorages[id] && allStorages[id].ownerId === currentUser.id) {
         allStorages[id].isPublic = !allStorages[id].isPublic;
-        saveAllStorages();
-        renderMyStorages();
+        persistStorage(id).then(saved => {
+            if (saved) {
+                renderMyStorages();
+                loadCommunityStorages().then(renderCommunityStorages).catch(error =>
+                    showAppNotice(`Community storages laden is niet gelukt: ${error.message}`, true)
+                );
+            }
+        });
     }
 }
 
@@ -639,10 +961,18 @@ function deleteStorage(id) {
         return;
     }
 
-    showMinecraftConfirm("Weet je zeker dat je deze storage wilt verwijderen?", () => {
-        delete allStorages[id];
-        saveAllStorages();
-        renderMyStorages();
+    showMinecraftConfirm("Weet je zeker dat je deze storage wilt verwijderen?", async () => {
+        try {
+            const { error } = await supabaseClient.from("storages").delete().eq("id", id);
+            if (error) {
+                showAppNotice(`Verwijderen is niet gelukt: ${error.message}`, true);
+                return;
+            }
+            delete allStorages[id];
+            renderMyStorages();
+        } catch (error) {
+            showAppNotice(`Verwijderen is niet gelukt: ${error.message}`, true);
+        }
     });
 }
 
@@ -650,23 +980,68 @@ function deleteStorage(id) {
 // ==========================================
 // 5. STORAGE PAGINA LOGICA (storage.html)
 // ==========================================
-function initStoragePage() {
+async function initStoragePage() {
+    if (!activeStorageId) {
+        window.location.replace("startpagina.html");
+        return;
+    }
     if (!allStorages[activeStorageId]) {
-        activeStorageId = Object.keys(allStorages)[0];
+        const { data: row, error } = await supabaseClient
+            .from("storages")
+            .select("id, owner_id, name, is_public, data")
+            .eq("id", activeStorageId)
+            .eq("is_public", true)
+            .maybeSingle();
+        if (error) {
+            showAppNotice(`Storage laden is niet gelukt: ${error.message}`, true);
+            return;
+        }
+        if (!row) {
+            window.location.replace("startpagina.html");
+            return;
+        }
+        if (!isStorageDataValid(row.data)) {
+            showAppNotice("Deze openbare storage bevat ongeldige gegevens.", true);
+            window.location.replace("startpagina.html");
+            return;
+        }
+        allStorages[row.id] = {
+            id: row.id,
+            ownerId: row.owner_id,
+            name: row.name,
+            isPublic: row.is_public,
+            data: row.data
+        };
+        isReadOnlyStorage = row.owner_id !== currentUser.id;
+    } else {
+        isReadOnlyStorage = false;
     }
 
     const currentStorage = allStorages[activeStorageId];
+    if (!currentStorage) {
+        window.location.replace("startpagina.html");
+        return;
+    }
     const titleEl = document.getElementById("currentStorageTitle");
     const btnPrivacy = document.getElementById("btnTogglePrivacy");
 
     if (titleEl) titleEl.innerText = currentStorage.name;
+    if (btnPrivacy) btnPrivacy.hidden = isReadOnlyStorage;
+    const addActionBox = document.getElementById("addActionBox");
+    if (addActionBox && isReadOnlyStorage) addActionBox.style.display = "none";
     updatePrivacyButton();
 
-    if (btnPrivacy) {
+    if (btnPrivacy && !isReadOnlyStorage) {
         btnPrivacy.addEventListener("click", () => {
             currentStorage.isPublic = !currentStorage.isPublic;
-            saveAllStorages();
-            updatePrivacyButton();
+            persistStorage(activeStorageId).then(saved => {
+                if (saved) {
+                    updatePrivacyButton();
+                    loadCommunityStorages().then(renderCommunityStorages).catch(error =>
+                        showAppNotice(`Community storages laden is niet gelukt: ${error.message}`, true)
+                    );
+                }
+            });
         });
     }
 
@@ -721,7 +1096,7 @@ function navigateTo(pageId) {
         currentCategory = null;
         currentSubCategory = null;
     } else {
-        if (addActionBox) addActionBox.style.display = 'block';
+        if (addActionBox) addActionBox.style.display = isReadOnlyStorage ? 'none' : 'block';
         if (pageId === 'categories') {
             title.innerText = "HOOFD TOEVOEGEN";
             input.placeholder = "Naam hoofd...";
@@ -741,23 +1116,25 @@ function navigateTo(pageId) {
     updateBreadcrumb();
 }
 
-function handleDynamicAdd() {
+async function handleDynamicAdd() {
+    if (isReadOnlyStorage) return;
     const input = document.getElementById('dynamicInput');
     const value = input.value.trim();
     if (!value) return;
 
     let storageData = getActiveData();
+    let changed = false;
 
     if (currentPage === 'categories') {
         if (!storageData[value]) {
             storageData[value] = { icon: selectedIcon, subcategories: {} };
-            saveAllStorages();
+            changed = true;
             renderCategories();
         }
     } else if (currentPage === 'subcategories') {
         if (currentCategory && !storageData[currentCategory].subcategories[value]) {
             storageData[currentCategory].subcategories[value] = [];
-            saveAllStorages();
+            changed = true;
             renderSubCategories();
         }
     } else if (currentPage === 'items') {
@@ -766,35 +1143,51 @@ function handleDynamicAdd() {
                 storageData[currentCategory].subcategories[currentSubCategory] = [];
             }
             storageData[currentCategory].subcategories[currentSubCategory].push({ name: value });
-            saveAllStorages();
+            changed = true;
             renderItems();
         }
     }
+    if (changed) await persistStorage(activeStorageId);
     input.value = '';
 }
 
 function updateBreadcrumb() {
     const container = document.getElementById('verticalBreadcrumb');
     if (!container) return;
+    container.replaceChildren();
+    const addLink = (label, action) => {
+        const link = document.createElement("span");
+        link.className = "mc-breadcrumb-link";
+        link.textContent = label;
+        link.addEventListener("click", action);
+        container.appendChild(link);
+    };
+    const addArrow = () => {
+        const arrow = document.createElement("span");
+        arrow.className = "mc-breadcrumb-arrow-down";
+        arrow.textContent = "↓";
+        container.appendChild(arrow);
+    };
 
-    let html = `<span class="mc-breadcrumb-link" onclick="navigateTo('home')">START</span>`;
+    addLink("START", () => navigateTo("home"));
 
     if (currentPage !== 'home') {
-        html += `<span class="mc-breadcrumb-arrow-down">↓</span>`;
-        html += `<span class="mc-breadcrumb-link" onclick="navigateTo('categories')">HOOFD</span>`;
+        addArrow();
+        addLink("HOOFD", () => navigateTo("categories"));
     }
 
     if (currentCategory && (currentPage === 'subcategories' || currentPage === 'items')) {
-        html += `<span class="mc-breadcrumb-arrow-down">↓</span>`;
-        html += `<span class="mc-breadcrumb-link" onclick="openCategory('${currentCategory}')">${currentCategory.toUpperCase()}</span>`;
+        addArrow();
+        addLink(currentCategory.toUpperCase(), () => openCategory(currentCategory));
     }
 
     if (currentSubCategory && currentPage === 'items') {
-        html += `<span class="mc-breadcrumb-arrow-down">↓</span>`;
-        html += `<span style="color: #ffffff;">${currentSubCategory.toUpperCase()}</span>`;
+        addArrow();
+        const current = document.createElement("span");
+        current.style.color = "#ffffff";
+        current.textContent = currentSubCategory.toUpperCase();
+        container.appendChild(current);
     }
-
-    container.innerHTML = html;
 }
 
 function renderCategories() {
@@ -809,8 +1202,8 @@ function renderCategories() {
         card.className = 'category-card';
         card.onclick = () => openCategory(name);
         card.innerHTML = `
-            <div class="category-icon">${storageData[name].icon || '📦'}</div>
-            <div class="category-title">${name}</div>
+            <div class="category-icon">${escapeHtml(storageData[name].icon || '📦')}</div>
+            <div class="category-title">${escapeHtml(name)}</div>
         `;
         grid.appendChild(card);
     }
@@ -836,7 +1229,7 @@ function renderSubCategories() {
         card.onclick = () => openSubCategory(subName);
         card.innerHTML = `
             <div class="category-icon">📂</div>
-            <div class="category-title">${subName}</div>
+            <div class="category-title">${escapeHtml(subName)}</div>
         `;
         grid.appendChild(card);
     }
@@ -867,15 +1260,20 @@ function renderItems() {
 
         const card = document.createElement('div');
         card.className = 'item-card';
-        card.innerHTML = `
-            <span class="item-name">${itemName}</span>
-            <button class="delete-btn" onclick="deleteItem(${index})">✖</button>
-        `;
+        card.innerHTML = `<span class="item-name">${escapeHtml(itemName)}</span>`;
+        if (!isReadOnlyStorage) {
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "delete-btn";
+            deleteButton.textContent = "✖";
+            deleteButton.addEventListener("click", () => deleteItem(index));
+            card.appendChild(deleteButton);
+        }
         grid.appendChild(card);
     });
 }
 
 function deleteItem(index) {
+    if (isReadOnlyStorage) return;
     showMinecraftConfirm("Weet je zeker dat je dit item wilt verwijderen?", () => {
         const itemCards = document.querySelectorAll('#itemsGrid .item-card');
         const targetCard = itemCards[index];
@@ -892,15 +1290,11 @@ function deleteItem(index) {
                 if (currentCategory && currentSubCategory) {
                     let storageData = getActiveData();
                     storageData[currentCategory].subcategories[currentSubCategory].splice(index, 1);
-                    saveAllStorages();
-                    renderItems();
+                    persistStorage(activeStorageId).then(saved => {
+                        if (saved) renderItems();
+                    });
                 }
             }, 500);
-        } else {
-            let storageData = getAllStorages();
-            storageData[currentCategory].subcategories[currentSubCategory].splice(index, 1);
-            saveAllStorages();
-            renderItems();
         }
     });
 }
@@ -939,8 +1333,8 @@ function searchItems() {
             itemEl.className = 'search-item';
             itemEl.style.cssText = "padding: 8px; cursor: pointer; border-bottom: 1px solid #444;";
             itemEl.innerHTML = `
-                <span style="font-size: 1.3rem;">📦 <b>${match.item}</b></span><br>
-                <span class="search-item-path" style="color: #aaa; font-size: 1.1rem;">${match.category} ➔ ${match.subCategory}</span>
+                <span style="font-size: 1.3rem;">📦 <b>${escapeHtml(match.item)}</b></span><br>
+                <span class="search-item-path" style="color: #aaa; font-size: 1.1rem;">${escapeHtml(match.category)} ➔ ${escapeHtml(match.subCategory)}</span>
             `;
             itemEl.onclick = () => {
                 currentCategory = match.category;

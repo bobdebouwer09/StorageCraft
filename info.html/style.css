@@ -321,3 +321,93 @@ body.light-mode .mc-slider {
 #welcomeUserTitle {
     text-shadow: 3px 3px 0px #000000;
 }
+
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.auth-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(100%, 420px);
+    padding: 24px;
+    background: rgba(55, 55, 55, 0.98);
+    border: 3px solid #777;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.auth-title {
+    margin: 0;
+    color: var(--mc-text-gold);
+    text-align: center;
+}
+
+.auth-status {
+    min-height: 1.2em;
+    margin: 0;
+    color: #ffcc55;
+}
+
+.auth-secondary {
+    margin-top: 4px;
+    background-color: #555;
+}
+
+.account-bar {
+    position: fixed;
+    top: 15px;
+    left: 20px;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100vw - 120px);
+    padding: 6px;
+    background: rgba(55, 55, 55, 0.95);
+    border: 2px solid #555;
+}
+
+.account-bar span {
+    overflow: hidden;
+    color: #fff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-bar .mc-button {
+    padding: 5px 8px;
+    font-size: 1.2rem;
+}
+
+.app-notice {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 5000;
+    max-width: min(620px, calc(100vw - 40px));
+    padding: 14px;
+    color: #111;
+    background: #ffcc55;
+    border: 3px solid #222;
+}
+
+.app-notice-error {
+    color: #fff;
+    background: #9c2525;
+}
+
+@media (max-width: 520px) {
+    .account-bar {
+        top: 72px;
+        left: 10px;
+        max-width: calc(100vw - 20px);
+    }
+}

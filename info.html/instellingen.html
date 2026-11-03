@@ -27,15 +27,15 @@
 
                 <!-- BLOK 1: LOKAAL PROFIEL -->
                 <div class="right-box" style="text-align: left; padding: 15px;">
-                    <h3 class="search-title" style="color: var(--mc-text-gold);">👤 SPELERSNAAM (DEMO)</h3>
-                    <p style="color: #ccc; font-size: 1.3rem; margin-bottom: 10px;">Spelersnaam op dit apparaat:</p>
+                    <h3 class="search-title" style="color: var(--mc-text-gold);">👤 ACCOUNT & PROFIEL</h3>
+                    <p style="color: #ccc; font-size: 1.3rem; margin-bottom: 10px;">Jouw publieke spelersnaam:</p>
 
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <input type="text" id="accountNameInput" class="mc-input" placeholder="Jouw Minecraft naam...">
                         <button class="mc-button" id="btnSaveAccount" style="background-color: #55ff55; color: #000; font-size: 1.4rem;">OPSLAAN</button>
                     </div>
                     <div id="accountStatus" style="font-size: 1.2rem; color: #ffaa00;"></div>
-                    <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 0;">Dit is geen account of login. Je naam wordt alleen in deze browser opgeslagen.</p>
+                    <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 0;">Deze naam wordt getoond bij je openbare storages. Je e-mailadres wordt niet publiek getoond.</p>
                 </div>
 
                 <!-- BLOK 2: THEMA SWITCH -->
@@ -60,6 +60,8 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
