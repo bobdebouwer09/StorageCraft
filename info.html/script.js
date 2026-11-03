@@ -611,11 +611,20 @@ async function initializeAuthenticatedApp(user) {
         currentProfileName = profile?.display_name || user.user_metadata?.display_name ||
             user.email.split("@")[0].slice(0, 32);
         if (!profile) {
-            const { error: insertError } = await supabaseClient.from("profiles").insert({
-                id: user.id,
-                display_name: currentProfileName
-            });
+            const { error: insertError } = await supabaseClient
+                .from("profiles")
+                .upsert(
+                    { id: user.id, display_name: currentProfileName },
+                    { onConflict: "id", ignoreDuplicates: true }
+                );
             if (insertError) throw insertError;
+            const { data: createdProfile, error: createdProfileError } = await supabaseClient
+                .from("profiles")
+                .select("display_name")
+                .eq("id", user.id)
+                .single();
+            if (createdProfileError) throw createdProfileError;
+            currentProfileName = createdProfile.display_name;
         }
 
         await Promise.all([loadStorageRows(), loadCommunityStorages()]);
