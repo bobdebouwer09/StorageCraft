@@ -1,8 +1,20 @@
 create table if not exists public.profiles (
     id uuid primary key references auth.users (id) on delete cascade,
     display_name text not null check (char_length(btrim(display_name)) between 1 and 32),
+    username text,
     created_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists username text;
+alter table public.profiles drop constraint if exists profiles_username_format;
+alter table public.profiles add constraint profiles_username_format
+    check (username is null or (
+        char_length(username) between 3 and 20
+        and username = lower(username)
+        and username ~ '^[a-z0-9_]+$'
+    ));
+create unique index if not exists profiles_username_unique_idx
+    on public.profiles (username) where username is not null;
 
 create table if not exists public.storages (
     id uuid primary key default gen_random_uuid(),

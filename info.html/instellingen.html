@@ -37,12 +37,14 @@
                     <h3 class="search-title" style="color: var(--mc-text-gold);">👤 ACCOUNT & PROFIEL</h3>
                     <p style="color: #ccc; font-size: 1.3rem; margin-bottom: 10px;">Jouw publieke spelersnaam:</p>
 
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <input type="text" id="accountNameInput" class="mc-input" placeholder="Jouw Minecraft naam...">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="accountNameInput" class="mc-input" maxlength="32" placeholder="Jouw Minecraft naam...">
+                        <label for="accountUsernameInput">Gebruikersnaam voor inloggen (3-20 tekens):</label>
+                        <input type="text" id="accountUsernameInput" class="mc-input" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" autocomplete="username" placeholder="Bijvoorbeeld Steve_123">
                         <button class="mc-button" id="btnSaveAccount" style="background-color: #55ff55; color: #000; font-size: 1.4rem;">OPSLAAN</button>
                     </div>
                     <div id="accountStatus" style="font-size: 1.2rem; color: #ffaa00;"></div>
-                    <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 0;">Deze naam wordt getoond bij je openbare storages. Je e-mailadres wordt niet publiek getoond.</p>
+                    <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 0;">Je spelersnaam verschijnt bij openbare storages. Je gebruikersnaam is uniek en is bedoeld om mee in te loggen. Je e-mailadres wordt niet publiek getoond.</p>
                 </div>
 
                 <!-- BLOK 2: THEMA SWITCH -->

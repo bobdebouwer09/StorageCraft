@@ -314,6 +314,7 @@ let allStorages = {};
 let communityStorages = [];
 let currentUser = null;
 let currentProfileName = "";
+let currentUsername = "";
 let isReadOnlyStorage = false;
 let activeStorageId = localStorage.getItem('mc_active_storage_id') || "";
 let currentCategory = null;
@@ -373,10 +374,12 @@ function createAuthUi() {
         <form id="authForm" class="auth-box">
             <h1 class="auth-title">⛏️ CHESTCRAFT</h1>
             <p id="authDescription">Log in om je storages online te gebruiken.</p>
+            <label for="authUsername">Gebruikersnaam of e-mailadres</label>
+            <input id="authUsername" class="mc-input" type="text" maxlength="254" autocomplete="username" required placeholder="Jouw gebruikersnaam">
             <label id="displayNameLabel" for="authDisplayName" hidden>Spelersnaam</label>
             <input id="authDisplayName" class="mc-input" type="text" maxlength="32" autocomplete="nickname" placeholder="Spelersnaam" hidden>
-            <label for="authEmail">E-mailadres</label>
-            <input id="authEmail" class="mc-input" type="email" autocomplete="email" required placeholder="jij@voorbeeld.nl">
+            <label id="authEmailLabel" for="authEmail" hidden>E-mailadres (voor bevestiging en accountherstel)</label>
+            <input id="authEmail" class="mc-input" type="email" autocomplete="email" placeholder="jij@voorbeeld.nl" hidden>
             <label for="authPassword">Wachtwoord</label>
             <input id="authPassword" class="mc-input" type="password" minlength="8" autocomplete="current-password" required placeholder="Minimaal 8 tekens">
             <p id="authStatus" class="auth-status" role="status"></p>
@@ -386,8 +389,11 @@ function createAuthUi() {
     document.body.appendChild(overlay);
 
     const form = overlay.querySelector("#authForm");
+    const username = overlay.querySelector("#authUsername");
     const displayName = overlay.querySelector("#authDisplayName");
     const displayNameLabel = overlay.querySelector("#displayNameLabel");
+    const email = overlay.querySelector("#authEmail");
+    const emailLabel = overlay.querySelector("#authEmailLabel");
     const password = overlay.querySelector("#authPassword");
     const submit = overlay.querySelector("#authSubmit");
     const modeToggle = overlay.querySelector("#authModeToggle");
@@ -395,8 +401,15 @@ function createAuthUi() {
 
     modeToggle.addEventListener("click", () => {
         registering = !registering;
+        username.placeholder = registering ? "Kies een gebruikersnaam (3-20 tekens)" : "Gebruikersnaam of e-mailadres";
+        overlay.querySelector('label[for="authUsername"]').textContent = registering
+            ? "Gebruikersnaam"
+            : "Gebruikersnaam of e-mailadres";
         displayName.hidden = !registering;
         displayNameLabel.hidden = !registering;
+        email.hidden = !registering;
+        emailLabel.hidden = !registering;
+        email.required = registering;
         password.autocomplete = registering ? "new-password" : "current-password";
         submit.textContent = registering ? "ACCOUNT AANMAKEN" : "INLOGGEN";
         modeToggle.textContent = registering
@@ -416,17 +429,21 @@ function createAuthUi() {
         status.textContent = "Even wachten...";
 
         try {
-            const email = overlay.querySelector("#authEmail").value.trim();
+            const identity = username.value.trim();
             const passwordValue = password.value;
             if (registering) {
+                const normalizedUsername = identity.toLowerCase();
+                if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
+                    throw new Error("Kies een gebruikersnaam van 3-20 tekens met alleen letters, cijfers of _.");
+                }
                 const name = displayName.value.trim();
                 if (!name) throw new Error("Vul je spelersnaam in.");
                 if (name.length > 32) throw new Error("Je spelersnaam mag maximaal 32 tekens zijn.");
                 const { data, error } = await supabaseClient.auth.signUp({
-                    email,
+                    email: email.value.trim(),
                     password: passwordValue,
                     options: {
-                        data: { display_name: name },
+                        data: { display_name: name, username: normalizedUsername },
                         emailRedirectTo: window.CHESTCRAFT_SUPABASE_CONFIG.emailRedirectUrl
                     }
                 });
@@ -437,11 +454,23 @@ function createAuthUi() {
                     status.textContent = "Account aangemaakt.";
                 }
             } else {
-                const { error } = await supabaseClient.auth.signInWithPassword({
-                    email,
-                    password: passwordValue
-                });
-                if (error) throw error;
+                if (identity.includes("@")) {
+                    const { error } = await supabaseClient.auth.signInWithPassword({
+                        email: identity,
+                        password: passwordValue
+                    });
+                    if (error) throw error;
+                } else {
+                    const { data, error } = await supabaseClient.functions.invoke("login-with-username", {
+                        body: { username: identity, password: passwordValue }
+                    });
+                    if (error) throw error;
+                    const { error: sessionError } = await supabaseClient.auth.setSession({
+                        access_token: data.access_token,
+                        refresh_token: data.refresh_token
+                    });
+                    if (sessionError) throw sessionError;
+                }
                 status.textContent = "";
             }
         } catch (error) {
@@ -608,28 +637,45 @@ async function initializeAuthenticatedApp(user) {
     try {
         const { data: profile, error: profileError } = await supabaseClient
             .from("profiles")
-            .select("display_name")
+            .select("display_name, username")
             .eq("id", user.id)
             .maybeSingle();
         if (profileError) throw profileError;
 
         currentProfileName = profile?.display_name || user.user_metadata?.display_name ||
             user.email.split("@")[0].slice(0, 32);
+        currentUsername = profile ? (profile.username || "") : (user.user_metadata?.username || "");
         if (!profile) {
             const { error: insertError } = await supabaseClient
                 .from("profiles")
                 .upsert(
-                    { id: user.id, display_name: currentProfileName },
+                    {
+                        id: user.id,
+                        display_name: currentProfileName,
+                        username: currentUsername || null
+                    },
                     { onConflict: "id", ignoreDuplicates: true }
                 );
-            if (insertError) throw insertError;
+            if (insertError?.code === "23505" && currentUsername) {
+                const { error: fallbackInsertError } = await supabaseClient
+                    .from("profiles")
+                    .upsert(
+                        { id: user.id, display_name: currentProfileName, username: null },
+                        { onConflict: "id", ignoreDuplicates: true }
+                    );
+                if (fallbackInsertError) throw fallbackInsertError;
+                pendingAppNotice = "Deze gebruikersnaam is al bezet. Kies een andere bij Instellingen.";
+            } else if (insertError) {
+                throw insertError;
+            }
             const { data: createdProfile, error: createdProfileError } = await supabaseClient
                 .from("profiles")
-                .select("display_name")
+                .select("display_name, username")
                 .eq("id", user.id)
                 .single();
             if (createdProfileError) throw createdProfileError;
             currentProfileName = createdProfile.display_name;
+            currentUsername = createdProfile.username || "";
         }
 
         await Promise.all([loadStorageRows(), loadCommunityStorages()]);
@@ -641,6 +687,8 @@ async function initializeAuthenticatedApp(user) {
 
         const accountNameInput = document.getElementById("accountNameInput");
         if (accountNameInput) accountNameInput.value = currentProfileName;
+        const accountUsernameInput = document.getElementById("accountUsernameInput");
+        if (accountUsernameInput) accountUsernameInput.value = currentUsername;
         if (document.getElementById("myStorageList")) initDashboard();
         else if (document.getElementById("currentStorageTitle")) await initStoragePage();
         if (document.getElementById("appNotice")?.textContent) {
@@ -670,6 +718,7 @@ function initializeBackend() {
         if (event === "SIGNED_OUT") {
             currentUser = null;
             loadedUserId = null;
+            currentUsername = "";
             allStorages = {};
             document.getElementById("authOverlay").style.display = "flex";
             document.getElementById("signedInAccount")?.remove();
@@ -739,6 +788,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Accountinstellingen zijn gekoppeld aan het ingelogde Supabase-account.
     const accountNameInput = document.getElementById('accountNameInput');
+    const accountUsernameInput = document.getElementById('accountUsernameInput');
     const btnSaveAccount = document.getElementById('btnSaveAccount');
     const accountStatus = document.getElementById('accountStatus');
 
@@ -753,10 +803,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 accountStatus.innerText = "Je spelersnaam mag maximaal 32 tekens zijn.";
                 return;
             }
+            const username = accountUsernameInput.value.trim().toLowerCase();
+            if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+                accountStatus.innerText = "Gebruikersnamen moeten 3-20 tekens zijn en alleen letters, cijfers of _ bevatten.";
+                return;
+            }
             try {
                 const { error } = await supabaseClient.from("profiles").upsert({
                     id: currentUser.id,
-                    display_name: name
+                    display_name: name,
+                    username
                 });
                 if (error) throw error;
             } catch (error) {
@@ -764,6 +820,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             currentProfileName = name;
+            currentUsername = username;
             accountStatus.innerText = `Spelersnaam "${name}" opgeslagen in je account.`;
             const existingAccountLabel = document.getElementById("signedInAccount");
             if (existingAccountLabel) existingAccountLabel.textContent = currentProfileName;
