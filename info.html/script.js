@@ -31,22 +31,124 @@ const woodConstructionItems = woodTypes.flatMap(wood => {
     }
     return items;
 });
+const starterWoodItems = woodConstructionItems.filter(item =>
+    /(?:Log|Stem|Planks|Stairs|Fence|Fence Gate|Door)$/.test(item) || item === "Bamboo Block"
+);
 
 const TEMPLATES = {
     template_starter: {
         name: "Starter Survival",
         data: {
-            "Bouwblokken": {
+            "Bouwblokken & Constructie": {
                 icon: "🪵",
                 subcategories: {
-                    "Hout": [{ name: "Oak Log" }, { name: "Oak Plank" }],
-                    "Steen": [{ name: "Cobblestone" }, { name: "Stone Bricks" }]
+                    "Hout": makeItems(...starterWoodItems),
+                    "Steen": makeItems(
+                        "Cobblestone", "Stone Bricks", "Granite", "Diorite", "Andesite", "Deepslate", "Tuff"
+                    ),
+                    "Zand, Grind & Glas": makeItems(
+                        "Sand", "Red Sand", "Gravel", "Glass",
+                        ...dyeColors.map(color => `${color} Stained Glass`)
+                    ),
+                    "Nether & End": makeItems(
+                        "Netherrack", "Basalt", "Blackstone", "End Stone", "Purpur Block"
+                    )
                 }
             },
-            "Eten & Voedsel": {
-                icon: "🌾",
+            "Apparatuur & Uitrusting": {
+                icon: "⚔️",
                 subcategories: {
-                    "Oogst": [{ name: "Wheat" }, { name: "Carrot" }, { name: "Potato" }]
+                    "Wapens & Gereedschap": makeItems(
+                        "Sword", "Pickaxe", "Axe", "Shovel", "Bow", "Fishing Rod"
+                    ),
+                    "Harnas & Bescherming": makeItems(
+                        "Helmet", "Chestplate", "Leggings", "Boots", "Shield"
+                    ),
+                    "Waardevol & Magie": makeItems(
+                        "Enchanted Book", "Name Tag", "Lapis Lazuli", "Bell"
+                    )
+                }
+            },
+            "Eten & Landbouw": {
+                icon: "🍎",
+                subcategories: {
+                    "Eten": makeItems(
+                        "Cooked Beef", "Cooked Porkchop", "Cooked Chicken", "Cooked Mutton",
+                        "Bread", "Apple", "Golden Apple", "Carrot"
+                    ),
+                    "Zaden & Gewassen": makeItems(
+                        "Wheat Seeds", "Beetroot Seeds", "Melon Seeds", "Pumpkin Seeds",
+                        "Sugar Cane", "Nether Wart", "Sweet Berries", "Glow Berries"
+                    ),
+                    "Dierlijke producten": makeItems(
+                        ...dyeColors.map(color => `${color} Wool`),
+                        "Leather", "Feather", "Egg", "String"
+                    )
+                }
+            },
+            "Ertsen & Mineralen": {
+                icon: "💎",
+                subcategories: {
+                    "Grondstoffen": makeItems(
+                        "Coal", "Iron Ore", "Iron Ingot", "Gold Ore", "Gold Ingot",
+                        "Copper Ore", "Copper Ingot", "Raw Copper", "Diamond", "Emerald",
+                        "Netherite Ingot"
+                    )
+                }
+            },
+            "Redstone & Mechanismen": {
+                icon: "🔴",
+                subcategories: {
+                    "Redstone Onderdelen": makeItems(
+                        "Redstone Dust", "Redstone Torch", "Redstone Repeater",
+                        "Redstone Comparator", "Redstone Block"
+                    ),
+                    "Mechanismen": makeItems(
+                        "Piston", "Hopper", "Dispenser", "Dropper",
+                        ...woodTypes.map(wood => `${wood} Button`), "Stone Button", "Lever"
+                    )
+                }
+            },
+            "Brouwen & Magie": {
+                icon: "🧪",
+                subcategories: {
+                    "Brouwen": makeItems(
+                        "Brewing Stand", "Cauldron", "Glass Bottle", "Potion"
+                    ),
+                    "Ingrediënten": makeItems(
+                        "Blaze Powder", "Ghast Tear", "Magma Cream", "Spider Eye"
+                    )
+                }
+            },
+            "Natuur & Decoratie": {
+                icon: "🌿",
+                subcategories: {
+                    "Planten & Bomen": makeItems(
+                        ...woodTypes.filter(wood => wood !== "Bamboo" && wood !== "Crimson" && wood !== "Warped")
+                            .flatMap(wood => [`${wood} Sapling`, `${wood} Leaves`]),
+                        "Bamboo", "Moss Block", "Brown Mushroom", "Red Mushroom",
+                        "Dandelion", "Poppy", "Blue Orchid", "Allium", "Azure Bluet",
+                        "Red Tulip", "Orange Tulip", "White Tulip", "Pink Tulip",
+                        "Oxeye Daisy", "Cornflower", "Lily of the Valley"
+                    ),
+                    "Decoratie": makeItems(
+                        "Painting", "Banner", "Candle", "Lantern", "Soul Lantern",
+                        "Bed", "Carpet",
+                        ...dyeColors.flatMap(color => [
+                            `${color} Banner`, `${color} Candle`, `${color} Bed`, `${color} Carpet`
+                        ])
+                    )
+                }
+            },
+            "Mob Drops & Restanten": {
+                icon: "💀",
+                subcategories: {
+                    "Mob Drops": makeItems(
+                        "Rotten Flesh", "Bone", "Gunpowder", "Ender Pearl", "Slimeball"
+                    ),
+                    "Diversen": makeItems(
+                        "Saddle", "Bucket", "Water Bucket", "Lava Bucket"
+                    )
                 }
             }
         }
