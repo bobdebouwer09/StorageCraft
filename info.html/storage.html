@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Item Storage</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HAMBURGER MENU KNOP (3 STREEPJES) -->
+<button id="btnHamburger" class="hamburger-btn">☰</button>
+
+<!-- DROPDOWN / ZIJMENU VOOR NAVIGATIE -->
+<div id="hamburgerMenu" class="hamburger-dropdown">
+    <div class="menu-header">MENU</div>
+    <button class="mc-button full-width" onclick="window.location.href='instellingen.html'">⚙️ Instellingen</button>
+</div>
+
+<div class="container">
+
+    <!-- KOLOM 1: LINKS (NAVIGATIE) -->
+    <div class="sidebar-nav">
+        <button class="mc-button full-width" id="btnBackToStart" onclick="window.location.href='startpagina.html'" style="margin-bottom: 15px; background-color: #ffaa00; color: #000;">
+            🏠 DASHBOARD
+        </button>
+
+        <div id="verticalBreadcrumb" class="vertical-breadcrumb"></div>
+    </div>
+
+    <!-- KOLOM 2: MIDDEN (HOOFDINHOUD) -->
+    <div class="main-content">
+
+        <div class="storage-header" style="background-color: rgba(55, 55, 55, 0.9); padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 3px solid #555;">
+            <div>
+                <span style="color: #aaa; font-size: 1.1rem;">ACTIEVE STORAGE:</span>
+                <h2 id="currentStorageTitle" style="color: var(--mc-text-gold); margin: 0; font-size: 2rem;">Survival Base</h2>
+            </div>
+
+            <div>
+                <button id="btnTogglePrivacy" class="mc-button" style="font-size: 1.2rem; padding: 5px 10px;">
+                    🔒 Privé
+                </button>
+            </div>
+        </div>
+
+        <div id="page-home" class="page active">
+            <h1>📦 STORAGE INHOUD</h1>
+            <div class="home-screen">
+                <button class="mc-button full-width" id="btnGoCategories">
+                    HOOFDCATEGORIEËN
+                </button>
+            </div>
+        </div>
+
+        <div id="page-categories" class="page">
+            <h2>HOOFDCATEGORIEËN</h2>
+            <div id="categoriesGrid" class="grid"></div>
+        </div>
+
+        <div id="page-subcategories" class="page">
+            <h2 id="subCategoryTitle">SUBCATEGORIEËN</h2>
+            <div id="subCategoriesGrid" class="grid"></div>
+        </div>
+
+        <div id="page-items" class="page">
+            <h2 id="itemsPageTitle">ITEMS</h2>
+            <div id="itemsGrid" class="grid"></div>
+        </div>
+
+    </div>
+
+    <!-- KOLOM 3: RECHTS (ZOEKEN & TOEVOEGEN) -->
+    <div class="right-sidebar">
+
+        <div class="right-box">
+            <h3 class="search-title">ZOEK ITEM</h3>
+            <input type="text" id="homeSearchInput" class="mc-input" placeholder="Zoek...">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <div class="right-box" id="addActionBox" style="display:none;">
+            <h3 class="search-title" id="addActionTitle">TOEVOEGEN</h3>
+            <input type="text" id="dynamicInput" class="mc-input" placeholder="Naam..." style="margin-top: 5px;">
+            <button class="mc-button full-width" id="btnDynamicAdd" style="margin-top: 10px;">VOEG TOE</button>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- CUSTOM MINECRAFT CONFIRM POP-UP -->
+<div id="mcConfirmModal" class="mc-confirm-modal" style="display: none;">
+    <div class="mc-confirm-box">
+        <h3 style="color: var(--mc-text-gold); margin-top: 0;">⛏️ WEET JE HET ZEKER?</h3>
+        <p id="mcConfirmText" style="font-size: 1.4rem; color: #fff;">Weet je zeker dat je dit wilt weghakken?</p>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="mc-button" id="btnConfirmYes" style="flex: 1; background-color: #ff5555; color: #fff;">JA, HAK WEG!</button>
+            <button class="mc-button" id="btnConfirmNo" style="flex: 1;">ANNULEREN</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

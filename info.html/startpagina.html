@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Minecraft Storage</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HAMBURGER MENU KNOP -->
+<button class="hamburger-btn" id="btnHamburger">☰</button>
+
+<!-- HAMBURGER UITKLAPMENU -->
+<div class="hamburger-dropdown" id="hamburgerMenu">
+    <div class="menu-header">MENU</div>
+    <button class="mc-button full-width" onclick="window.location.href='instellingen.html'" style="font-size: 1.4rem; margin-bottom: 8px;">⚙️ Instellingen</button>
+    <button class="mc-button full-width" onclick="window.location.href='info.html'" style="font-size: 1.4rem;">ℹ️ Info</button>
+</div>
+
+<div class="container" style="max-width: 900px; margin-top: 40px;">
+
+    <!-- MIDDEN (DASHBOARD CONTENT) -->
+    <div class="main-content" style="flex: 1;">
+
+        <!-- PERSOONLIJK WELKOM BERICHT -->
+        <h2 id="welcomeUserTitle" style="color: var(--mc-text-gold); font-size: 2.2rem; margin-bottom: 20px; text-shadow: 3px 3px 0px #000000;">Welkom, Speler!</h2>
+
+        <!-- MIJN STORAGES BLOK -->
+        <div class="right-box" style="padding: 20px; margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 class="search-title" style="margin: 0; font-size: 1.8rem;">MIJN STORAGES</h3>
+                <button class="mc-button" id="btnOpenNewStorageModal" style="background-color: #55ff55; color: #000; font-size: 1.3rem;">+ NIEUW</button>
+            </div>
+
+            <div id="myStorageList" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Wordt dynamisch gevuld vanuit script.js -->
+            </div>
+        </div>
+
+        <!-- COMMUNITY STORAGES BLOK -->
+        <div class="right-box" style="padding: 20px;">
+            <h3 class="search-title" style="margin-bottom: 15px; font-size: 1.8rem;">COMMUNITY STORAGE (DEMO)</h3>
+            <p style="color: #ccc; margin-top: 0;">Voorbeeldstorages; delen met andere bezoekers werkt nog niet.</p>
+            <div id="communityStorageList" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Wordt dynamisch gevuld vanuit script.js -->
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL VOOR NIEUWE STORAGE AANMAKEN -->
+<div id="newStorageModal" class="mc-confirm-modal" style="display: none;">
+    <div class="mc-confirm-box" style="text-align: left; max-width: 400px;">
+        <h3 style="color: var(--mc-text-gold); margin-top: 0; font-size: 1.6rem;">Nieuwe Storage Aanmaken</h3>
+
+        <p style="margin-bottom: 5px; font-size: 1.2rem;">Naam van je storage:</p>
+        <input type="text" id="newStorageName" class="mc-input" placeholder="Bijv. Nether Base..." style="margin-bottom: 15px;">
+
+        <p style="margin-bottom: 5px; font-size: 1.2rem;">Kies een sjabloon:</p>
+        <select id="newStorageType" class="mc-input" style="margin-bottom: 20px;">
+            <option value="empty">Lege Storage</option>
+            <option value="template_starter">Starter Survival (Met hout & steen)</option>
+            <option value="template_mega">Mega Warehouse (Met erts & redstone)</option>
+        </select>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="mc-button" id="btnCancelStorage" style="background-color: #ff5555; color: #fff; font-size: 1.3rem;">ANNULEREN</button>
+            <button class="mc-button" id="btnCreateStorage" style="background-color: #55ff55; color: #000; font-size: 1.3rem;">AANMAKEN</button>
+        </div>
+    </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL VOOR VERWIJDEREN -->
+<div id="mcConfirmModal" class="mc-confirm-modal" style="display: none;">
+    <div class="mc-confirm-box">
+        <p id="mcConfirmText" style="font-size: 1.4rem; margin-bottom: 20px; color: #fff;">Weet je het zeker?</p>
+        <div style="display: flex; justify-content: center; gap: 15px;">
+            <button id="btnConfirmYes" class="mc-button" style="background-color: #ff5555; color: #fff; font-size: 1.3rem;">JA</button>
+            <button id="btnConfirmNo" class="mc-button" style="background-color: #727272; color: #fff; font-size: 1.3rem;">NEE</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

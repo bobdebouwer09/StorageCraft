@@ -1,0 +1,323 @@
+:root {
+    --mc-bg: #4e4e4e;
+    --mc-box-bg: #373737;
+    --mc-text-gold: #ffaa00;
+}
+
+body {
+    background-image: url('achtergrond.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-color: var(--mc-bg);
+    color: #fff;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    gap: 20px;
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+.sidebar-nav {
+    width: 220px;
+}
+
+.main-content {
+    flex: 1;
+}
+
+.right-sidebar {
+    width: 280px;
+}
+
+.right-box {
+    background-color: rgba(55, 55, 55, 0.9);
+    border: 3px solid #555;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.mc-button {
+    background-color: #727272;
+    color: #fff;
+    border: 3px solid #3d3d3d;
+    padding: 12px 16px;
+    font-family: 'VT323', monospace;
+    font-size: 1.6rem;
+    cursor: pointer;
+}
+
+.mc-button:hover {
+    background-color: #8b8b8b;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.mc-input {
+    width: 100%;
+    padding: 10px;
+    background-color: #222;
+    color: #fff;
+    border: 2px solid #555;
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    box-sizing: border-box;
+}
+
+.search-title {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: var(--mc-text-gold);
+}
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.category-card, .item-card {
+    background-color: rgba(43, 43, 43, 0.9);
+    border: 3px solid #555;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.category-icon {
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+}
+
+.category-title {
+    font-size: 1.5rem;
+}
+
+.item-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.4rem;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: #ff5555;
+    cursor: pointer;
+    font-size: 1.5rem;
+}
+
+/* --- VERTICAAL BREADCRUMB --- */
+.vertical-breadcrumb {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background-color: rgba(55, 55, 55, 0.9);
+    border: 3px solid #555;
+    padding: 15px;
+}
+
+.mc-breadcrumb-link {
+    color: var(--mc-text-gold);
+    cursor: pointer;
+    font-size: 1.4rem;
+}
+
+.mc-breadcrumb-link:hover {
+    text-decoration: underline;
+}
+
+.mc-breadcrumb-arrow-down {
+    color: #fff;
+    font-size: 1.2rem;
+    line-height: 1rem;
+}
+
+/* --- MINECRAFT TOGGLE SWITCH STIJL --- */
+.mc-switch {
+    position: relative;
+    display: inline-block;
+    width: 70px;
+    height: 34px;
+}
+
+.mc-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.mc-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #222;
+    border: 3px solid #555;
+    transition: 0.2s;
+}
+
+.mc-slider:before {
+    position: absolute;
+    content: "🌙";
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    width: 28px;
+    left: 2px;
+    bottom: 1px;
+    background-color: #727272;
+    border: 2px solid #3d3d3d;
+    transition: 0.2s;
+}
+
+.mc-switch input:checked + .mc-slider {
+    background-color: #ffaa00;
+}
+
+.mc-switch input:checked + .mc-slider:before {
+    content: "☀️";
+    transform: translateX(34px);
+    background-color: #fff;
+}
+
+/* --- PICKAXE HAK-ANIMATIE --- */
+@keyframes mineBlock {
+    0% { transform: rotate(0deg) scale(1); opacity: 1; }
+    30% { transform: rotate(-35deg) scale(1.1); background-color: rgba(150, 50, 50, 0.9); }
+    70% { transform: rotate(15deg) scale(0.9); opacity: 0.7; }
+    100% { transform: rotate(0deg) scale(0); opacity: 0; }
+}
+
+.item-card.mining-out {
+    animation: mineBlock 0.5s forwards ease-in-out;
+    border-color: #ffaa00 !important;
+}
+
+/* HAMBURGER MENU STIJLEN */
+.hamburger-btn {
+    position: fixed;
+    top: 15px;
+    right: 20px;
+    background-color: rgba(55, 55, 55, 0.9);
+    color: #fff;
+    border: 3px solid #555;
+    font-size: 2rem;
+    padding: 4px 14px;
+    cursor: pointer;
+    z-index: 1000;
+    font-family: 'VT323', monospace;
+}
+
+.hamburger-btn:hover {
+    background-color: #4a4a4a;
+    border-color: #ffaa00;
+}
+
+.hamburger-dropdown {
+    display: none;
+    position: fixed;
+    top: 65px;
+    right: 20px;
+    width: 240px;
+    background-color: rgba(55, 55, 55, 0.95);
+    border: 3px solid #555;
+    padding: 12px;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+    z-index: 1000;
+    flex-direction: column;
+}
+
+.hamburger-dropdown.show {
+    display: flex;
+}
+
+.menu-header {
+    color: var(--mc-text-gold);
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+    text-align: center;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+/* CUSTOM CONFIRM MODAL */
+.mc-confirm-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.mc-confirm-box {
+    background-color: rgba(55, 55, 55, 0.95);
+    border: 3px solid #555;
+    padding: 20px;
+    text-align: center;
+    max-width: 350px;
+    width: 90%;
+}
+
+/* LICHTE MODUS STIJLEN */
+body.light-mode {
+    background-image: url('achtergrond.jpg') !important;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-color: #c6c6c6 !important;
+    color: #111 !important;
+}
+
+body.light-mode p {
+    color: #333 !important;
+}
+
+body.light-mode .right-box,
+body.light-mode .storage-header,
+body.light-mode .hamburger-dropdown,
+body.light-mode .hamburger-btn,
+body.light-mode .category-card,
+body.light-mode .item-card,
+body.light-mode .mc-confirm-box {
+    background-color: rgba(224, 224, 224, 0.95) !important;
+    color: #111 !important;
+    border-color: #888 !important;
+}
+
+body.light-mode .mc-input {
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+body.light-mode .mc-slider {
+    background-color: #ddd;
+    border-color: #888;
+}
+/* --- TEKSTSCHADUW VOOR BETER ZICHT --- */
+#welcomeUserTitle {
+    text-shadow: 3px 3px 0px #000000;
+}
