@@ -126,6 +126,23 @@ body {
     font-size: 1.5rem;
 }
 
+.category-delete-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 6px 8px;
+    color: #fff;
+    background-color: #b52d2d;
+    border: 2px solid #ff5555;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.category-delete-btn:hover {
+    background-color: #d33;
+}
+
 /* --- VERTICAAL BREADCRUMB --- */
 .vertical-breadcrumb {
     display: flex;

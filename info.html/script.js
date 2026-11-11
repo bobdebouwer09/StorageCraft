@@ -1402,9 +1402,9 @@ function renderCategories() {
         `;
         if (!isReadOnlyStorage) {
             const deleteButton = document.createElement("button");
-            deleteButton.className = "delete-btn";
+            deleteButton.className = "category-delete-btn";
             deleteButton.type = "button";
-            deleteButton.textContent = "✖";
+            deleteButton.textContent = "✖ VERWIJDER";
             deleteButton.title = `Verwijder hoofdcategorie ${name}`;
             deleteButton.setAttribute("aria-label", `Verwijder hoofdcategorie ${name}`);
             deleteButton.addEventListener("click", event => {
