@@ -1400,8 +1400,43 @@ function renderCategories() {
             <div class="category-icon">${escapeHtml(storageData[name].icon || '📦')}</div>
             <div class="category-title">${escapeHtml(name)}</div>
         `;
+        if (!isReadOnlyStorage) {
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "delete-btn";
+            deleteButton.type = "button";
+            deleteButton.textContent = "✖";
+            deleteButton.title = `Verwijder hoofdcategorie ${name}`;
+            deleteButton.setAttribute("aria-label", `Verwijder hoofdcategorie ${name}`);
+            deleteButton.addEventListener("click", event => {
+                event.stopPropagation();
+                deleteCategory(name);
+            });
+            card.appendChild(deleteButton);
+        }
         grid.appendChild(card);
     }
+}
+
+function deleteCategory(name) {
+    if (isReadOnlyStorage) return;
+    const storageData = getActiveData();
+    if (!Object.hasOwn(storageData, name)) return;
+
+    showMinecraftConfirm(
+        `Weet je zeker dat je hoofdcategorie "${name}" en alle subcategorieën en items erin wilt verwijderen?`,
+        async () => {
+            delete storageData[name];
+            if (currentCategory === name) {
+                currentCategory = null;
+                currentSubCategory = null;
+            }
+
+            if (await persistStorage(activeStorageId)) {
+                renderCategories();
+                updateBreadcrumb();
+            }
+        }
+    );
 }
 
 function openCategory(catName) {
